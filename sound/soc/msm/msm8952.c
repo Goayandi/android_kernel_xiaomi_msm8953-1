@@ -47,7 +47,6 @@
 #define QUIN_MI2S_ID	(1 << 4)
 
 #define DEFAULT_MCLK_RATE 9600000
-
 #ifdef CONFIG_XIAOMI_D2
 int ext_pa_gpio = 0;
 int ext_pa_status = 0;
@@ -56,7 +55,6 @@ int ext_pa_status = 0;
 #define WCD_MBHC_DEF_RLOADS 5
 #define MAX_WSA_CODEC_NAME_LENGTH 80
 #define MSM_DT_MAX_PROP_SIZE 80
-
 #define EXT_PA_MODE  5
 enum btsco_rates {
 	RATE_8KHZ_ID,
@@ -100,6 +98,12 @@ static struct wcd_mbhc_config mbhc_cfg = {
 	.mono_stero_detection = false,
 	.swap_gnd_mic = NULL,
 	.hs_ext_micbias = false,
+	/*
+	.key_code[0] = KEY_MEDIA,
+	.key_code[1] = KEY_VOICECOMMAND,
+	.key_code[2] = KEY_VOLUMEUP,
+	.key_code[3] = KEY_VOLUMEDOWN,
+	*/
 	.key_code[0] = KEY_MEDIA,
 	.key_code[1] = BTN_1,
 	.key_code[2] = BTN_2,
@@ -294,13 +298,11 @@ int is_ext_hd_gpio_support(struct platform_device *pdev,
 	return 0;
 }
 #endif
-
 static int enable_spk_ext_pa(struct snd_soc_codec *codec, int enable)
 {
 	struct snd_soc_card *card = codec->component.card;
 	struct msm8916_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 	int pa_mode = EXT_PA_MODE;
-
 	if (!gpio_is_valid(pdata->spk_ext_pa_gpio)) {
 		pr_err("%s: Invalid gpio: %d\n", __func__,
 			pdata->spk_ext_pa_gpio);
@@ -323,7 +325,6 @@ static int enable_spk_ext_pa(struct snd_soc_codec *codec, int enable)
 	}
 	return 0;
 }
-
 #ifdef CONFIG_XIAOMI_D2
 static int enable_hd_ext_pa(struct snd_soc_codec *codec, int enable)
 {
@@ -1554,6 +1555,7 @@ static void msm_quin_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 	}
 }
 
+#ifdef CONFIG_PROJECT_VINCE
 static void *def_msm8952_wcd_mbhc_cal(void)
 {
 	void *msm8952_wcd_cal;
@@ -1589,7 +1591,31 @@ static void *def_msm8952_wcd_mbhc_cal(void)
 	 * 210-290 == Button 2
 	 * 360-680 == Button 3
 	 */
-#ifdef CONFIG_XIAOMI_D2
+	/*
+	btn_low[0] = 75;
+	btn_high[0] = 75;
+	btn_low[1] = 150;
+	btn_high[1] = 150;
+	btn_low[2] = 225;
+	btn_high[2] = 225;
+	btn_low[3] = 450;
+	btn_high[3] = 450;
+	btn_low[4] = 500;
+	btn_high[4] = 500;
+	*/
+	#ifndef CONFIG_SOUND_MIDOLITE
+	#if 1
+	btn_low[0] = 177;
+	btn_high[0] = 277;
+	btn_low[1] = 206;
+	btn_high[1] = 437;
+	btn_low[2] = 243;
+	btn_high[2] = 612;
+	btn_low[3] = 243;
+	btn_high[3] = 612;
+	btn_low[4] = 243;
+	btn_high[4] = 612;
+	#else
 	btn_low[0] = 91;
 	btn_high[0] = 91;
 	btn_low[1] = 259;
@@ -1600,7 +1626,20 @@ static void *def_msm8952_wcd_mbhc_cal(void)
 	btn_high[3] = 488;
 	btn_low[4] = 488;
 	btn_high[4] = 488;
-#else
+	#endif
+	#else
+	#if 1
+	btn_low[0] = 277;
+	btn_high[0] = 277;
+	btn_low[1] = 437;
+	btn_high[1] = 437;
+	btn_low[2] = 627;
+	btn_high[2] = 627;
+	btn_low[3] = 627;
+	btn_high[3] = 627;
+	btn_low[4] = 627;
+	btn_high[4] = 627;
+	#else
 	btn_low[0] = 73;
 	btn_high[0] = 73;
 	btn_low[1] = 233;
@@ -1611,10 +1650,112 @@ static void *def_msm8952_wcd_mbhc_cal(void)
 	btn_high[3] = 438;
 	btn_low[4] = 438;
 	btn_high[4] = 438;
-#endif
-
+	#endif
+	#endif
 	return msm8952_wcd_cal;
 }
+#else
+static void *def_msm8952_wcd_mbhc_cal(void)
+{
+	void *msm8952_wcd_cal;
+	struct wcd_mbhc_btn_detect_cfg *btn_cfg;
+	u16 *btn_low, *btn_high;
+
+	msm8952_wcd_cal = kzalloc(WCD_MBHC_CAL_SIZE(WCD_MBHC_DEF_BUTTONS,
+				WCD_MBHC_DEF_RLOADS), GFP_KERNEL);
+	if (!msm8952_wcd_cal)
+		return NULL;
+
+#define S(X, Y) ((WCD_MBHC_CAL_PLUG_TYPE_PTR(msm8952_wcd_cal)->X) = (Y))
+	S(v_hs_max, 1600);
+#undef S
+#define S(X, Y) ((WCD_MBHC_CAL_BTN_DET_PTR(msm8952_wcd_cal)->X) = (Y))
+	S(num_btn, WCD_MBHC_DEF_BUTTONS);
+#undef S
+
+
+	btn_cfg = WCD_MBHC_CAL_BTN_DET_PTR(msm8952_wcd_cal);
+	btn_low = btn_cfg->_v_btn_low;
+	btn_high = ((void *)&btn_cfg->_v_btn_low) +
+		(sizeof(btn_cfg->_v_btn_low[0]) * btn_cfg->num_btn);
+
+	/*
+	 * In SW we are maintaining two sets of threshold register
+	 * one for current source and another for Micbias.
+	 * all btn_low corresponds to threshold for current source
+	 * all bt_high corresponds to threshold for Micbias
+	 * Below thresholds are based on following resistances
+	 * 0-70    == Button 0
+	 * 110-180 == Button 1
+	 * 210-290 == Button 2
+	 * 360-680 == Button 3
+	 */
+	/*
+	btn_low[0] = 75;
+	btn_high[0] = 75;
+	btn_low[1] = 150;
+	btn_high[1] = 150;
+	btn_low[2] = 225;
+	btn_high[2] = 225;
+	btn_low[3] = 450;
+	btn_high[3] = 450;
+	btn_low[4] = 500;
+	btn_high[4] = 500;
+	*/
+#ifdef CONFIG_XIAOMI_D2
+	#if 0
+	btn_low[0] = 177;
+	btn_high[0] = 277;
+	btn_low[1] = 206;
+	btn_high[1] = 437;
+	btn_low[2] = 243;
+	btn_high[2] = 612;
+	btn_low[3] = 243;
+	btn_high[3] = 612;
+	btn_low[4] = 243;
+	btn_high[4] = 612;
+	#else
+	btn_low[0] = 91;
+	btn_high[0] = 91;
+	btn_low[1] = 259;
+	btn_high[1] = 259;
+	btn_low[2] = 488;
+	btn_high[2] = 488;
+	btn_low[3] = 488;
+	btn_high[3] = 488;
+	btn_low[4] = 488;
+	btn_high[4] = 488;
+	#endif
+#else
+	#if 0
+	/****uart exit*********/
+	btn_low[0] = 277;
+	btn_high[0] = 277;
+	btn_low[1] = 437;
+	btn_high[1] = 437;
+	btn_low[2] = 627;
+	btn_high[2] = 627;
+	btn_low[3] = 627;
+	btn_high[3] = 627;
+	btn_low[4] = 627;
+	btn_high[4] = 627;
+	#else
+	/****uart remove******/
+	btn_low[0] = 73;
+	btn_high[0] = 73;
+	btn_low[1] = 233;
+	btn_high[1] = 233;
+	btn_low[2] = 438;
+	btn_high[2] = 438;
+	btn_low[3] = 438;
+	btn_high[3] = 438;
+	btn_low[4] = 438;
+	btn_high[4] = 438;
+	#endif
+#endif
+	return msm8952_wcd_cal;
+}
+#endif
 
 static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 {
@@ -2436,6 +2577,7 @@ static struct snd_soc_dai_link msm8952_dai[] = {
 		.ops = &msm8952_quat_mi2s_be_ops,
 		.ignore_suspend = 1,
 	},
+
 	/* Primary AUX PCM Backend DAI Links */
 	{
 		.name = LPASS_BE_AUXPCM_RX,
@@ -2606,7 +2748,6 @@ static struct snd_soc_dai_link msm8952_dai[] = {
 		.be_hw_params_fixup = msm_be_hw_params_fixup,
 		.ignore_suspend = 1,
 	},
-
 	{
 		.name = LPASS_BE_QUIN_MI2S_TX,
 		.stream_name = "Quinary MI2S Capture",
@@ -2661,11 +2802,7 @@ static struct snd_soc_dai_link msm8952_quin_dai_link[] = {
 		.no_pcm = 1,
 		.dpcm_playback = 1,
 		.be_id = MSM_BACKEND_DAI_QUINARY_MI2S_RX,
-#ifdef CONFIG_SND_SOC_MAX98927
 		.be_hw_params_fixup = msm_be_hw_params_fixup,
-#else
-		.be_hw_params_fixup = msm_mi2s_rx_be_hw_params_fixup,
-#endif
 		.ops = &msm8952_quin_mi2s_be_ops,
 		.ignore_pmdown_time = 1, /* dai link has playback support */
 		.ignore_suspend = 1,
@@ -2978,6 +3115,7 @@ static struct snd_soc_card *msm8952_populate_sndcard_dailinks(
 	len1 = ARRAY_SIZE(msm8952_dai);
 	memcpy(msm8952_dai_links, msm8952_dai, sizeof(msm8952_dai));
 	dailink = msm8952_dai_links;
+
 	if (of_property_read_bool(dev->of_node,
 				"qcom,hdmi-dba-codec-rx")) {
 		dev_dbg(dev, "%s(): hdmi audio support present\n",

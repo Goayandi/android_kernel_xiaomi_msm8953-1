@@ -1069,8 +1069,8 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 	struct usb_ep		*in = NULL;
 	u16			cdc_filter = 0;
 	bool			multi_pkt_xfer = false;
-	u32			fixed_in_len;
-	bool			is_fixed;
+	u32			fixed_in_len = 0;
+	bool			is_fixed = false;
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (dev->port_usb) {
@@ -1266,23 +1266,6 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 	}
 
 	req->length = length;
-
-	/* throttle high/super speed IRQ rate back slightly */
-	if (gadget_is_dualspeed(dev->gadget) &&
-			 (dev->gadget->speed == USB_SPEED_HIGH ||
-			  dev->gadget->speed == USB_SPEED_SUPER)) {
-		spin_lock_irqsave(&dev->req_lock, flags);
-		dev->tx_qlen++;
-		if (dev->tx_qlen == MAX_TX_REQ_WITH_NO_INT) {
-			req->no_interrupt = 0;
-			dev->tx_qlen = 0;
-		} else {
-			req->no_interrupt = 1;
-		}
-		spin_unlock_irqrestore(&dev->req_lock, flags);
-	} else {
-		req->no_interrupt = 0;
-	}
 
 	retval = usb_ep_queue(in, req, GFP_ATOMIC);
 	switch (retval) {

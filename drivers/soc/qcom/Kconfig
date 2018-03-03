@@ -293,14 +293,14 @@ config MSM_CACHE_M4M_ERP64_PANIC_ON_UE
          are detected.
 
 config MSM_L2_IA_DEBUG
-       bool "Enable MSM L2 Indirect Access Debug"
-       depends on DEBUG_FS
-       default n
-       help
-         This option enables L2 indirect access debug
-         capability. It exposes L2 indirect access
-         debugfs interface to get/set data, address,
-         and target cpus.
+	bool "Enable MSM L2 Indirect Access Debug"
+	depends on DEBUG_FS
+	default n
+	help
+	  This option enables L2 indirect access debug
+	  capability. It exposes L2 indirect access
+	  debugfs interface to get/set data, address,
+	  and target cpus.
 
 config MSM_RPM_SMD
 	bool "RPM driver using SMD protocol"
@@ -360,6 +360,10 @@ menuconfig MSM_SCM_XPU
 
 if MSM_SCM_XPU
 
+choice
+	prompt "XPU Violation Behavior"
+	default MSM_XPU_ERR_FATAL
+
 config MSM_XPU_ERR_FATAL
 	bool "Configure XPU violations as fatal errors"
 	help
@@ -369,6 +373,8 @@ config MSM_XPU_ERR_NONFATAL
 	bool "Configure XPU violations as non-fatal errors"
 	help
 	 Select if XPU violations have to be configured as non-fatal errors.
+
+endchoice
 
 endif
 
@@ -472,18 +478,16 @@ config MSM_GLINK_SMEM_NATIVE_XPRT
 	  transport to only connecting with entities internal to the
 	  System-on-Chip.
 
-config MSM_SPCOM
+config MSM_GLINK_BGCOM_XPRT
 	depends on MSM_GLINK
-	bool "Secure Processor Communication over GLINK"
+	depends on MSM_BGCOM
+	tristate "Generic Link (G-Link) BGCOM Transport"
 	help
-	  spcom driver allows loading Secure Processor Applications and
-	  sending messages to Secure Processor Applications.
-	  spcom provides interface to both user space app and kernel driver.
-	  It is using glink as the transport layer, which provides multiple
-	  logical channels over signle physical channel.
-	  The physical layer is based on shared memory and interrupts.
-	  spcom provides clients/server API, although currently only one client
-	  or server is allowed per logical channel.
+	  G-Link BGCOM Transport is a Transport plug-in developed over BGCOM.
+	  This transport plug-in performs marshaling of G-Link
+	  commands & data to the appropriate BGCOM format and
+	  allows for G-Link communication with remote subsystems that are
+	  external to the System-on-Chip.
 
 config MSM_SMEM_LOGGING
 	depends on MSM_SMEM
@@ -819,12 +823,6 @@ config MSM_REMOTEQDSS
 	  events. Provide a sysfs interface for debug tools to dynamically
 	  enable/disable these events. Interface located in
 	  /sys/class/remoteqdss.
-
-config QCOM_SMCINVOKE
-	bool "Secure QSEE Support"
-	help
-	  Enable SMCInvoke driver which supports capability based secure
-	  communication between QSEE and HLOS.
 
 config SERIAL_NUM
 	bool "Enable Serial Number Proc Interface"

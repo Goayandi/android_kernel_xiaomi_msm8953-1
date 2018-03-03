@@ -403,6 +403,9 @@ static void mmc_manage_gp_partitions(struct mmc_card *card, u8 *ext_csd)
 	}
 }
 
+/* Minimum partition switch timeout in milliseconds */
+#define MMC_MIN_PART_SWITCH_TIME	300
+
 /*
  * Decode extended CSD.
  */
@@ -467,6 +470,10 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 
 		/* EXT_CSD value is in units of 10ms, but we store in ms */
 		card->ext_csd.part_time = 10 * ext_csd[EXT_CSD_PART_SWITCH_TIME];
+		/* Some eMMC set the value too low so set a minimum */
+		if (card->ext_csd.part_time &&
+		    card->ext_csd.part_time < MMC_MIN_PART_SWITCH_TIME)
+			card->ext_csd.part_time = MMC_MIN_PART_SWITCH_TIME;
 
 		/* Sleep / awake timeout in 100ns units */
 		if (sa_shift > 0 && sa_shift <= 0x17)
@@ -790,7 +797,7 @@ out:
 	mmc_free_ext_csd(bw_ext_csd);
 	return err;
 }
-
+MMC_DEV_ATTR(hq_fw_version, "0x%08x\n", card->ext_csd.fw_version);
 MMC_DEV_ATTR(cid, "%08x%08x%08x%08x\n", card->raw_cid[0], card->raw_cid[1],
 	card->raw_cid[2], card->raw_cid[3]);
 MMC_DEV_ATTR(csd, "%08x%08x%08x%08x\n", card->raw_csd[0], card->raw_csd[1],
@@ -814,6 +821,7 @@ MMC_DEV_ATTR(enhanced_rpmb_supported, "%#x\n",
 MMC_DEV_ATTR(rel_sectors, "%#x\n", card->ext_csd.rel_sectors);
 
 static struct attribute *mmc_std_attrs[] = {
+	&dev_attr_hq_fw_version.attr,
 	&dev_attr_cid.attr,
 	&dev_attr_csd.attr,
 	&dev_attr_date.attr,
@@ -1701,10 +1709,16 @@ reinit:
 
 	if (oldcard) {
 		if (memcmp(cid, oldcard->raw_cid, sizeof(cid)) != 0) {
-			err = -ENOENT;
-			pr_err("%s: %s: CID memcmp failed %d\n",
+			if (oldcard->cid_ffu_flag) {
+				memcpy(oldcard->raw_cid, cid, sizeof(cid));
+				oldcard->cid_ffu_flag = 0;
+				pr_info("FFU update CID\n");
+			} else{
+				err = -ENOENT;
+				pr_err("%s: %s: CID memcmp failed %d\n",
 					mmc_hostname(host), __func__, err);
-			goto err;
+				goto err;
+			}
 		}
 
 		card = oldcard;

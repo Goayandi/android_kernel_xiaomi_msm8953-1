@@ -65,6 +65,7 @@
 #include <linux/netdevice.h>
 #include <linux/unistd.h>
 #include <linux/ioctl.h>
+#include <linux/hqsysfs.h>
 
 #include "focaltech_common.h"
 #include "focaltech_flash.h"

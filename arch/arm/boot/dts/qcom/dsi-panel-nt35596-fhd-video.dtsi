@@ -53,14 +53,14 @@
 				29 01 00 00 14 00 02 29 00];
 		qcom,mdss-dsi-off-command = [05 01 00 00 14 00 02 28 00
 				05 01 00 00 78 00 02 10 00];
-		qcom,mdss-dsi-panel-timings-phy-v2 = [24 1f 08 09 05 03 04 a0
-				24 1f 08 09 05 03 04 a0
-				24 1f 08 09 05 03 04 a0
-				24 1f 08 09 05 03 04 a0
-			        24 1b 08 08 05 03 04 a0];
-		qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+		qcom,mdss-dsi-CABC_on-command = [29 01 00 00 01 00 02 ff 00
+				29 01 00 00 00 00 02 55 01];
+		qcom,mdss-dsi-CABC_off-command = [29 01 00 00 01 00 02 ff 00
+				29 01 00 00 00 00 02 55 00];
 		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
 		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
+		qcom,mdss-dsi-CABC_on-command-state = "dsi_hs_mode";
+		qcom,mdss-dsi-CABC_off-command-state = "dsi_hs_mode";
 		qcom,mdss-dsi-h-sync-pulse = <1>;
 		qcom,mdss-dsi-traffic-mode = "burst_mode";
 		qcom,mdss-dsi-bllp-eof-power-mode;

@@ -27,12 +27,14 @@
 #include <linux/msm-bus.h>
 #include <linux/pm_qos.h>
 
+
 #include "mdss.h"
 #include "mdss_panel.h"
 #include "mdss_dsi.h"
 #include "mdss_debug.h"
 #include "mdss_dsi_phy.h"
 #include "mdss_dba_utils.h"
+#include <linux/hqsysfs.h>
 
 #define XO_CLK_RATE	19200000
 #define CMDLINE_DSI_CTL_NUM_STRING_LEN 2
@@ -279,11 +281,10 @@ extern int ft8716_suspend;
 int acc_vreg = 0;
 #endif
 
-int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
+ int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 {
 	int ret = 0;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
-
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
 		ret = -EINVAL;
@@ -298,17 +299,18 @@ int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 		pr_warn("%s: Panel reset failed. rc=%d\n", __func__, ret);
 		ret = 0;
 	}
-
 	if (mdss_dsi_pinctrl_set_state(ctrl_pdata, false))
-		pr_debug("reset disable: pinctrl not enabled\n");
+			pr_debug("reset disable: pinctrl not enabled\n");
 
 #ifdef CONFIG_XIAOMI_D2
+	printk("D2 msm_dss_disable_vreg \n ");
+
 	if ((panel_suspend_power_flag != 3) && acc_vreg) {
 		ret = msm_dss_enable_vreg(
 		ctrl_pdata->panel_power_data.vreg_config,
 		ctrl_pdata->panel_power_data.num_vreg, 0);
 		acc_vreg--;
-		pr_debug("set 5V low : panel_suspend_power_flag : %d acc_vreg : %d\n", panel_suspend_power_flag, acc_vreg);
+		printk("set 5V low : panel_suspend_power_flag : %d acc_vreg : %d\n", panel_suspend_power_flag, acc_vreg);
 		if (ret)
 			pr_err("%s: failed to disable vregs for %s\n",
 			__func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
@@ -317,23 +319,28 @@ int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 			ret = msm_dss_enable_vreg(
 					ctrl_pdata->panel_power_data.vreg_config,
 					ctrl_pdata->panel_power_data.num_vreg, 0);
-			pr_debug("set 5V low : panel_suspend_power_flag : %d acc_vreg : %d\n", panel_suspend_power_flag, acc_vreg);
+			printk("set 5V low : panel_suspend_power_flag : %d acc_vreg : %d\n", panel_suspend_power_flag, acc_vreg);
 			acc_vreg--;
-			pr_debug("%s acc_vreg : %d\n", __func__, acc_vreg);
+			printk("%s acc_vreg : %d\n", __func__, acc_vreg);
 			if (ret)
 				pr_err("%s: failed to disable vregs for %s\n",
 					 __func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
+
 		}
+
 	}
 #else
+	printk("mido lite msm_dss_disable_vreg \n ");
+
 	if (!panel_suspend_power_flag) {
 		ret = msm_dss_enable_vreg(
 				ctrl_pdata->panel_power_data.vreg_config,
 				ctrl_pdata->panel_power_data.num_vreg, 0);
 	if (ret)
 		pr_err("%s: failed to disable vregs for %s\n",
-			__func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
+				__func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
 	}
+
 #endif
 
 end:
@@ -352,15 +359,14 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
-
 #ifdef CONFIG_XIAOMI_D2
-	pr_debug("%s before acc_vreg : %d\n", __func__, acc_vreg);
-	if (!acc_vreg) {
+	printk("%s before acc_vreg : %d\n", __func__, acc_vreg);
+       if (!acc_vreg) {
 		ret = msm_dss_enable_vreg(
 		ctrl_pdata->panel_power_data.vreg_config,
 		ctrl_pdata->panel_power_data.num_vreg, 1);
 		acc_vreg++ ;
-		pr_debug("%s acc_vreg : %d\n", __func__, acc_vreg);
+		printk("%s acc_vreg : %d\n", __func__, acc_vreg);
 		if (ret) {
 			pr_err("%s: failed to enable vregs for %s\n",
 				__func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
@@ -368,6 +374,7 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 		}
 	}
 #else
+printk("mido lite msm_dss_enable_vreg \n ");
 	ret = msm_dss_enable_vreg(
 		ctrl_pdata->panel_power_data.vreg_config,
 		ctrl_pdata->panel_power_data.num_vreg, 1);
@@ -388,7 +395,6 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 		!pdata->panel_info.mipi.lp11_init) {
 		if (mdss_dsi_pinctrl_set_state(ctrl_pdata, true))
 			pr_debug("reset enable: pinctrl not enabled\n");
-
 		ret = mdss_dsi_panel_reset(pdata, 1);
 		if (ret)
 			pr_err("%s: Panel reset failed. rc=%d\n",
@@ -433,7 +439,7 @@ static int mdss_dsi_panel_power_ctrl(struct mdss_panel_data *pdata,
 
 	switch (power_state) {
 	case MDSS_PANEL_POWER_OFF:
-		ret = mdss_dsi_panel_power_off(pdata);
+			ret = mdss_dsi_panel_power_off(pdata);
 		break;
 	case MDSS_PANEL_POWER_ON:
 		if (mdss_dsi_is_panel_on_lp(pdata))
@@ -724,6 +730,11 @@ static ssize_t mdss_dsi_cmd_state_write(struct file *file,
 	int *link_state = file->private_data;
 	char *input;
 
+	if (!count) {
+		pr_err("%s: Zero bytes to be written\n", __func__);
+		return -EINVAL;
+	}
+
 	input = kmalloc(count, GFP_KERNEL);
 	if (!input) {
 		pr_err("%s: Failed to allocate memory\n", __func__);
@@ -855,10 +866,15 @@ static ssize_t mdss_dsi_cmd_write(struct file *file, const char __user *p,
 
 	/* Writing in batches is possible */
 	ret = simple_write_to_buffer(string_buf, blen, ppos, p, count);
+	if (ret < 0) {
+		pr_err("%s: Failed to copy data\n", __func__);
+		mutex_unlock(&pcmds->dbg_mutex);
+		return -EINVAL;
+	}
 
-	string_buf[blen] = '\0';
+	string_buf[ret] = '\0';
 	pcmds->string_buf = string_buf;
-	pcmds->sblen = blen;
+	pcmds->sblen = count;
 	mutex_unlock(&pcmds->dbg_mutex);
 	return ret;
 }
@@ -909,7 +925,7 @@ static int mdss_dsi_cmd_flush(struct file *file, fl_owner_t id)
 	while (len >= sizeof(*dchdr)) {
 		dchdr = (struct dsi_ctrl_hdr *)bp;
 		dchdr->dlen = ntohs(dchdr->dlen);
-		if (dchdr->dlen > len) {
+		if (dchdr->dlen > len || dchdr->dlen < 0) {
 			pr_err("%s: dtsi cmd=%x error, len=%d\n",
 				__func__, dchdr->dtype, dchdr->dlen);
 			kfree(buf);
@@ -1717,6 +1733,18 @@ static int mdss_dsi_post_panel_on(struct mdss_panel_data *pdata)
 	return 0;
 }
 
+static irqreturn_t test_hw_vsync_handler(int irq, void *data)
+{
+	struct mdss_panel_data *pdata = (struct mdss_panel_data *)data;
+
+	pr_debug("HW VSYNC\n");
+	MDSS_XLOG(0xaaa, irq);
+	complete_all(&pdata->te_done);
+	if (pdata->next)
+		complete_all(&pdata->next->te_done);
+	return IRQ_HANDLED;
+}
+
 int mdss_dsi_cont_splash_on(struct mdss_panel_data *pdata)
 {
 	int ret = 0;
@@ -1986,7 +2014,7 @@ static int __mdss_dsi_dfps_update_clks(struct mdss_panel_data *pdata,
 {
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	struct mdss_dsi_ctrl_pdata *sctrl_pdata = NULL;
-	struct mdss_panel_info *pinfo, *spinfo;
+	struct mdss_panel_info *pinfo, *spinfo = NULL;
 	int rc = 0;
 
 	if (pdata == NULL) {
@@ -2135,7 +2163,7 @@ static int __mdss_dsi_dfps_update_clks(struct mdss_panel_data *pdata,
 
 	/* update new fps that at this point is already updated in hw */
 	pinfo->current_fps = new_fps;
-	if (sctrl_pdata) {
+	if (spinfo) {
 		spinfo->current_fps = new_fps;
 	}
 
@@ -2588,6 +2616,7 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		break;
 	case MDSS_EVENT_PANEL_OFF:
 		power_state = (int) (unsigned long) arg;
+		disable_esd_thread();
 		ctrl_pdata->ctrl_state &= ~CTRL_STATE_MDP_ACTIVE;
 		if (ctrl_pdata->off_cmds.link_state == DSI_LP_MODE)
 			rc = mdss_dsi_blank(pdata, power_state);
@@ -2746,12 +2775,14 @@ static struct device_node *mdss_dsi_pref_prim_panel(
  *
  * returns pointer to panel node on success, NULL on error.
  */
+
+static char panel_name[MDSS_MAX_PANEL_LEN] = "";
+
 static struct device_node *mdss_dsi_find_panel_of_node(
 		struct platform_device *pdev, char *panel_cfg)
 {
 	int len, i = 0;
 	int ctrl_id = pdev->id - 1;
-	char panel_name[MDSS_MAX_PANEL_LEN] = "";
 	char ctrl_id_stream[3] =  "0:";
 	char *str1 = NULL, *str2 = NULL, *override_cfg = NULL;
 	char cfg_np_name[MDSS_MAX_PANEL_LEN] = "";
@@ -2810,22 +2841,30 @@ static struct device_node *mdss_dsi_find_panel_of_node(
 				panel_name[i] = *(str1 + i);
 			panel_name[i] = 0;
 		}
-		pr_info("%s: cmdline:%s panel_name:%s\n",
+		pr_err("%s: cmdline:%s panel_name:%s\n",
 			__func__, panel_cfg, panel_name);
+
+
 		if (!strcmp(panel_name, NONE_PANEL))
 			goto exit;
 
 		if (!strcmp(panel_name, "qcom,mdss_dsi_td4310_fhd_video")) {
-			panel_suspend_reset_flag = 1;
-			panel_suspend_power_flag = 1;
+		panel_suspend_reset_flag = 1;
+		panel_suspend_power_flag = 1;
+		hq_regiser_hw_info(HWID_LCM, "incell, vendor:tianma, IC:td4310(synaptics)");
 		} else if (!strcmp(panel_name, "qcom,mdss_dsi_otm1911_fhd_video")) {
 			panel_suspend_reset_flag = 2;
 			panel_suspend_power_flag = 2;
-		} else if (!strcmp(panel_name, "qcom,mdss_dsi_ft8716_fhd_video")) {
-			panel_suspend_reset_flag = 3;
-			panel_suspend_power_flag = 3;
-		}
-
+			hq_regiser_hw_info(HWID_LCM, "GFF, vendor:tianma, IC:otm1911(focal)");
+			} else if (!strcmp(panel_name, "qcom,mdss_dsi_ft8716_fhd_video")) {
+				panel_suspend_reset_flag = 3;
+				panel_suspend_power_flag = 3;
+				hq_regiser_hw_info(HWID_LCM, "incell, vendor:sharp, IC:ft8716(focal)");
+			} else if (!strcmp(panel_name, "qcom,mdss_dsi_ili7807_fhd_video")) {
+				hq_regiser_hw_info(HWID_LCM, "GFF, vendor:EBBG, IC:ili7807(ilitek)");
+			} else if (!strcmp(panel_name, "qcom,mdss_dsi_nt35596_tianma_fhd_video_c6lite")) {
+				hq_regiser_hw_info(HWID_LCM, "GFF, vendor:Tianma, IC:NT35596(novatek)");
+				}
 		mdss_node = of_parse_phandle(pdev->dev.of_node,
 			"qcom,mdss-mdp", 0);
 		if (!mdss_node) {
@@ -3099,8 +3138,8 @@ static int mdss_dsi_get_bridge_chip_params(struct mdss_panel_info *pinfo,
 end:
 	return rc;
 }
-
 struct mdss_panel_data *panel_data;
+
 static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 {
 	int rc = 0;
@@ -3110,6 +3149,8 @@ static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 	struct device_node *dsi_pan_node = NULL;
 	const char *ctrl_name;
 	struct mdss_util_intf *util;
+	static int te_irq_registered;
+	struct mdss_panel_data *pdata;
 
 	if (!pdev || !pdev->dev.of_node) {
 		pr_err("%s: pdev not found for DSI controller\n", __func__);
@@ -3191,7 +3232,6 @@ static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 	} else {
 		ctrl_pdata->bklt_ctrl = UNKNOWN_CTRL;
 	}
-
 	panel_data = &ctrl_pdata->panel_data;
 
 	rc = dsi_panel_device_register(pdev, dsi_pan_node, ctrl_pdata);
@@ -3231,10 +3271,28 @@ static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 			hw_vsync_handler, IRQF_TRIGGER_FALLING,
 			"VSYNC_GPIO", ctrl_pdata);
 		if (rc) {
-			pr_err("TE request_irq failed.\n");
+			pr_err("%s: TE request_irq failed for ESD\n", __func__);
 			goto error_shadow_clk_deinit;
 		}
+		te_irq_registered = 1;
 		disable_irq(gpio_to_irq(ctrl_pdata->disp_te_gpio));
+	}
+
+	pdata = &ctrl_pdata->panel_data;
+	init_completion(&pdata->te_done);
+	if (pdata->panel_info.type == MIPI_CMD_PANEL) {
+		if (!te_irq_registered) {
+			rc = devm_request_irq(&pdev->dev,
+				gpio_to_irq(pdata->panel_te_gpio),
+				test_hw_vsync_handler, IRQF_TRIGGER_FALLING,
+				"VSYNC_GPIO", &ctrl_pdata->panel_data);
+			if (rc) {
+				pr_err("%s: TE request_irq failed\n", __func__);
+				goto error_shadow_clk_deinit;
+			}
+			te_irq_registered = 1;
+			disable_irq_nosync(gpio_to_irq(pdata->panel_te_gpio));
+		}
 	}
 
 	rc = mdss_dsi_get_bridge_chip_params(pinfo, ctrl_pdata, pdev);
@@ -4012,6 +4070,7 @@ static int mdss_dsi_parse_gpio_params(struct platform_device *ctrl_pdev,
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
 	struct mdss_panel_info *pinfo = &(ctrl_pdata->panel_data.panel_info);
+	struct mdss_panel_data *pdata = &ctrl_pdata->panel_data;
 
 	/*
 	 * If disp_en_gpio has been set previously (disp_en_gpio > 0)
@@ -4033,6 +4092,7 @@ static int mdss_dsi_parse_gpio_params(struct platform_device *ctrl_pdev,
 	if (!gpio_is_valid(ctrl_pdata->disp_te_gpio))
 		pr_err("%s:%d, TE gpio not specified\n",
 						__func__, __LINE__);
+	pdata->panel_te_gpio = ctrl_pdata->disp_te_gpio;
 
 	ctrl_pdata->bklt_en_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
 		"qcom,platform-bklight-en-gpio", 0);
@@ -4161,12 +4221,11 @@ int dsi_panel_device_register(struct platform_device *ctrl_pdev,
 	if (ctrl_pdata->status_mode == ESD_REG ||
 			ctrl_pdata->status_mode == ESD_REG_NT35596)
 		ctrl_pdata->check_status = mdss_dsi_reg_status_check;
-	else if (ctrl_pdata->status_mode == ESD_BTA)
-		ctrl_pdata->check_status = mdss_dsi_bta_status_check;
 	else if (ctrl_pdata->status_mode == ESD_TE_NT35596) {
 		ctrl_pdata->check_status = mdss_dsi_TE_NT35596_check;
 	        init_te_irq(ctrl_pdata);
-	}
+	} else if (ctrl_pdata->status_mode == ESD_BTA)
+		ctrl_pdata->check_status = mdss_dsi_bta_status_check;
 
 	if (ctrl_pdata->status_mode == ESD_MAX) {
 		pr_err("%s: Using default BTA for ESD check\n", __func__);

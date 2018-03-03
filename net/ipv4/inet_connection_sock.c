@@ -171,7 +171,7 @@ have_snum:
 		spin_lock(&head->lock);
 
 		if (inet_is_local_reserved_port(net, snum) &&
-		    !sysctl_reserved_port_bind) {
+		    !sysctl_protected_hardlinks) {
 			ret = 1;
 			goto fail_unlock;
 		}
@@ -685,6 +685,8 @@ struct sock *inet_csk_clone_lock(const struct sock *sk,
 		inet_sk(newsk)->inet_num = inet_rsk(req)->ir_num;
 		inet_sk(newsk)->inet_sport = htons(inet_rsk(req)->ir_num);
 		newsk->sk_write_space = sk_stream_write_space;
+
+		inet_sk(newsk)->mc_list = NULL;
 
 		newsk->sk_mark = inet_rsk(req)->ir_mark;
 
