@@ -316,15 +316,14 @@ struct device_node *of_batterydata_get_best_profile(
 {
 	struct batt_ids batt_ids;
 	struct device_node *node, *best_node = NULL;
-	struct device_node *default_node = NULL;
+  struct device_node *default_node = NULL;
 	struct power_supply *psy;
 	const char *battery_type = NULL;
 	union power_supply_propval ret = {0, };
 	int delta = 0, best_delta = 0, best_id_kohm = 0, id_range_pct,
 		batt_id_kohm = 0, i = 0, rc = 0, limit = 0;
 	bool in_range = false;
-	int checknum = 0, match = 0;
-
+  int checknum = 0, match = 0;
 	psy = power_supply_get_by_name(psy_name);
 	if (!psy) {
 		pr_err("%s supply not found. defer\n", psy_name);

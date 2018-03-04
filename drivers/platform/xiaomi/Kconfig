@@ -8,10 +8,10 @@ config MACH_XIAOMI_MSM8953
 
 menu "Xiaomi board selection"
 
-config MACH_XIAOMI_TISSOT
-	bool "Mido board"
+config MACH_XIAOMI_TIFFANY
+	bool "Tiffany board"
 	select MACH_XIAOMI_MSM8953
 	help
-	  Support for Xiomi MI A1 tissot
+	  Support for Mi 5X Tiffany
 
 endmenu

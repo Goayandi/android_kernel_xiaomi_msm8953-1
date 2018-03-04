@@ -29,9 +29,6 @@ DEFINE_MSM_MUTEX(msm_actuator_mutex);
 #define PARK_LENS_LONG_STEP 7
 #define PARK_LENS_MID_STEP 5
 #define PARK_LENS_SMALL_STEP 3
-#define PARK_LENS_QUIET_UPPER_CODE 400
-#define PARK_LENS_QUIET_LOWER_CODE 50
-#define PARK_LENS_QUIET_STEP 50
 #define MAX_QVALUE 4096
 
 static struct v4l2_file_operations msm_actuator_v4l2_subdev_fops;
@@ -96,6 +93,11 @@ static void msm_actuator_parse_i2c_params(struct msm_actuator_ctrl_t *a_ctrl,
 
 	if (a_ctrl == NULL) {
 		pr_err("failed. actuator ctrl is NULL");
+		return;
+	}
+
+	if (a_ctrl->i2c_reg_tbl == NULL) {
+		pr_err("failed. i2c reg tabl is NULL");
 		return;
 	}
 
@@ -815,21 +817,27 @@ static int32_t msm_actuator_park_lens(struct msm_actuator_ctrl_t *a_ctrl)
 	next_lens_pos = a_ctrl->step_position_table[a_ctrl->curr_step_pos];
 	while (next_lens_pos) {
 		/* conditions which help to reduce park lens time */
-		if (next_lens_pos > (PARK_LENS_QUIET_UPPER_CODE + 200))
-			next_lens_pos = PARK_LENS_QUIET_UPPER_CODE + 200;
-				else if (next_lens_pos > PARK_LENS_QUIET_UPPER_CODE)
-						next_lens_pos = PARK_LENS_QUIET_UPPER_CODE;
-		else {
-			if (next_lens_pos > (PARK_LENS_QUIET_LOWER_CODE * 2))
-				next_lens_pos -= PARK_LENS_QUIET_STEP * 2;
-			else if (next_lens_pos > 40)
-				next_lens_pos -= 40;
-			else if (next_lens_pos > 20)
-				next_lens_pos -= 20;
-			else
-				next_lens_pos = 0;
+		if (next_lens_pos > (a_ctrl->park_lens.max_step *
+			PARK_LENS_LONG_STEP)) {
+			next_lens_pos = next_lens_pos -
+				(a_ctrl->park_lens.max_step *
+				PARK_LENS_LONG_STEP);
+		} else if (next_lens_pos > (a_ctrl->park_lens.max_step *
+			PARK_LENS_MID_STEP)) {
+			next_lens_pos = next_lens_pos -
+				(a_ctrl->park_lens.max_step *
+				PARK_LENS_MID_STEP);
+		} else if (next_lens_pos > (a_ctrl->park_lens.max_step *
+			PARK_LENS_SMALL_STEP)) {
+			next_lens_pos = next_lens_pos -
+				(a_ctrl->park_lens.max_step *
+				PARK_LENS_SMALL_STEP);
+		} else {
+			next_lens_pos = (next_lens_pos >
+				a_ctrl->park_lens.max_step) ?
+				(next_lens_pos - a_ctrl->park_lens.
+				max_step) : 0;
 		}
-
 		a_ctrl->func_tbl->actuator_parse_i2c_params(a_ctrl,
 			next_lens_pos, a_ctrl->park_lens.hw_params,
 			a_ctrl->park_lens.damping_delay);
@@ -848,10 +856,7 @@ static int32_t msm_actuator_park_lens(struct msm_actuator_ctrl_t *a_ctrl)
 		}
 		a_ctrl->i2c_tbl_index = 0;
 		/* Use typical damping time delay to avoid tick sound */
-		if (next_lens_pos > 100)
-			usleep_range(5000, 6000);
-		else
-			usleep_range(10000, 12000);
+		usleep_range(10000, 12000);
 	}
 
 	return 0;
@@ -1278,9 +1283,11 @@ static int32_t msm_actuator_set_param(struct msm_actuator_ctrl_t *a_ctrl,
 
 	if (copy_from_user(&a_ctrl->region_params,
 		(void *)set_info->af_tuning_params.region_params,
-		a_ctrl->region_size * sizeof(struct region_params_t)))
+		a_ctrl->region_size * sizeof(struct region_params_t))) {
+		a_ctrl->total_steps = 0;
+		pr_err("Error copying region_params\n");
 		return -EFAULT;
-
+	}
 	if (a_ctrl->act_device_type == MSM_CAMERA_PLATFORM_DEVICE) {
 		cci_client = a_ctrl->i2c_client.cci_client;
 		cci_client->sid =
@@ -1704,6 +1711,10 @@ static long msm_actuator_subdev_do_ioctl(
 			parg = &actuator_data;
 			break;
 		}
+		break;
+	case VIDIOC_MSM_ACTUATOR_CFG:
+		pr_err("%s: invalid cmd 0x%x received\n", __func__, cmd);
+		return -EINVAL;
 	}
 
 	rc = msm_actuator_subdev_ioctl(sd, cmd, parg);
@@ -1936,15 +1947,16 @@ static int32_t msm_actuator_platform_probe(struct platform_device *pdev)
 	}
 	rc = msm_sensor_driver_get_gpio_data(&(msm_actuator_t->gconf),
 		(&pdev->dev)->of_node);
-	if (rc < 0) {
-		pr_err("%s: No/Error Actuator GPIOs\n", __func__);
+	if (-ENODEV == rc) {
+		pr_notice("No valid actuator GPIOs data\n");
+	} else if (rc < 0) {
+		pr_err("Error Actuator GPIOs\n");
 	} else {
 		msm_actuator_t->cam_pinctrl_status = 1;
 		rc = msm_camera_pinctrl_init(
 			&(msm_actuator_t->pinctrl_info), &(pdev->dev));
 		if (rc < 0) {
-			pr_err("ERR:%s: Error in reading actuator pinctrl\n",
-				__func__);
+			pr_err("ERR: Error in reading actuator pinctrl\n");
 			msm_actuator_t->cam_pinctrl_status = 0;
 		}
 	}
@@ -2034,8 +2046,6 @@ static int __init msm_actuator_init_module(void)
 	int32_t rc = 0;
 	CDBG("Enter\n");
 	rc = platform_driver_register(&msm_actuator_platform_driver);
-	if (!rc)
-		return rc;
 
 	CDBG("%s:%d rc %d\n", __func__, __LINE__, rc);
 	return i2c_add_driver(&msm_actuator_i2c_driver);

@@ -54,7 +54,7 @@
 
 #define WCD_MBHC_BTN_PRESS_COMPL_TIMEOUT_MS  50
 #define ANC_DETECT_RETRY_CNT 7
-#define WCD_MBHC_SPL_HS_CNT  1
+#define WCD_MBHC_SPL_HS_CNT  2
 
 static int det_extn_cable_en;
 module_param(det_extn_cable_en, int,
@@ -80,13 +80,14 @@ static struct switch_dev accdet_data;
 static void wcd_mbhc_jack_report(struct wcd_mbhc *mbhc,
 				struct snd_soc_jack *jack, int status, int mask)
 {
-	if (!status && (jack->jack->type&WCD_MBHC_JACK_MASK)) {
-		switch_set_state(&accdet_data, 0);
-		is_jack_insert = false;
-	} else if (jack->jack->type&WCD_MBHC_JACK_MASK) {
-		switch_set_state(&accdet_data, status);
-		is_jack_insert = true;
-	}
+  printk("[%s]===========status[%d]type[%d]\n", __FUNCTION__, status, jack->jack->type);
+  if (!status && (jack->jack->type&WCD_MBHC_JACK_MASK)) {
+          switch_set_state(&accdet_data, 0);
+          is_jack_insert = false;
+  } else if (jack->jack->type&WCD_MBHC_JACK_MASK) {
+          switch_set_state(&accdet_data, status);
+          is_jack_insert = true;
+  }
 	snd_soc_jack_report(jack, status, mask);
 }
 
@@ -179,13 +180,13 @@ static void wcd_enable_curr_micbias(const struct wcd_mbhc *mbhc,
 
 	switch (cs_mb_en) {
 	case WCD_MBHC_EN_CS:
-#if 0
+    #if 0
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_MICB_CTRL, 0);
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_BTN_ISRC_CTL, 3);
 		/* Program Button threshold registers as per CS */
 		wcd_program_btn_threshold(mbhc, false);
 		break;
-#endif
+    #endif
 	case WCD_MBHC_EN_MB:
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_BTN_ISRC_CTL, 0);
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_FSM_EN, 1);
@@ -352,13 +353,13 @@ out_micb_en:
 					  &mbhc->event_state)))
 			/* enable pullup and cs, disable mb */
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_PULLUP);
-		else {
-			/* enable current source and disable mb, pullup*/
-			if (is_jack_insert)
-			   wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
-			else
-			   wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_NONE);
-		}
+		else{
+      /* enable current source and disable mb, pullup*/
+      if (is_jack_insert)
+         wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
+      else
+         wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_NONE);
+    }
 
 		/* configure cap settings properly when micbias is disabled */
 		if (mbhc->mbhc_cb->set_cap_mode)
@@ -373,7 +374,7 @@ out_micb_en:
 			hphlocp_off_report(mbhc, SND_JACK_OC_HPHL);
 		clear_bit(WCD_MBHC_EVENT_PA_HPHL, &mbhc->event_state);
 		/* check if micbias is enabled */
-		if (is_jack_insert)
+		if (true == is_jack_insert)
 			/* Disable cs, pullup & enable micbias */
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
 		else
@@ -390,7 +391,7 @@ out_micb_en:
 			hphrocp_off_report(mbhc, SND_JACK_OC_HPHR);
 		clear_bit(WCD_MBHC_EVENT_PA_HPHR, &mbhc->event_state);
 		/* check if micbias is enabled */
-		if (is_jack_insert)
+		if (true == is_jack_insert)
 			/* Disable cs, pullup & enable micbias */
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
 		else
@@ -585,7 +586,6 @@ static void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 #ifdef CONFIG_XIAOMI_D2
 	bool is_pa_on = false;
 #endif
-
 	WCD_MBHC_RSC_ASSERT_LOCKED(mbhc);
 
 	pr_debug("%s: enter insertion %d hph_status %x\n",
@@ -593,9 +593,9 @@ static void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 	if (!insertion) {
 		/* Report removal */
 		mbhc->hph_status &= ~(SND_JACK_HEADSET |
-			SND_JACK_LINEOUT |
-			SND_JACK_ANC_HEADPHONE |
-			SND_JACK_UNSUPPORTED);
+            SND_JACK_LINEOUT |
+            SND_JACK_ANC_HEADPHONE |
+            SND_JACK_UNSUPPORTED);
 		/*
 		 * cancel possibly scheduled btn work and
 		 * report release if we reported button press
@@ -637,10 +637,11 @@ static void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 		hphrocp_off_report(mbhc, SND_JACK_OC_HPHR);
 		hphlocp_off_report(mbhc, SND_JACK_OC_HPHL);
 		mbhc->current_plug = MBHC_PLUG_TYPE_NONE;
-#ifdef CONFIG_XIAOMI_D2
-		pr_debug("%s [zoro] lsn ext_pa_gpio= %d\n", __func__, ext_pa_gpio);
-		gpio_set_value(ext_pa_gpio, EXT_PA_PULL_DOWN);
-#endif
+    #ifdef CONFIG_XIAOMI_D2
+    pr_debug("%s [zoro] lsn ext_pa_gpio= %d\n", __func__, ext_pa_gpio);
+
+    gpio_set_value(ext_pa_gpio, EXT_PA_PULL_DOWN);
+    #endif
 	} else {
 		/*
 		 * Report removal of current jack type.
@@ -715,18 +716,18 @@ static void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 		} else if (jack_type == SND_JACK_ANC_HEADPHONE)
 			mbhc->current_plug = MBHC_PLUG_TYPE_ANC_HEADPHONE;
 #ifdef CONFIG_XIAOMI_D2
-
 		if (mbhc->mbhc_cb->hph_pa_on_status)
 			is_pa_on = mbhc->mbhc_cb->hph_pa_on_status(codec);
-
+#endif
+#ifdef CONFIG_XIAOMI_D2
 		if (mbhc->impedance_detect &&
 			mbhc->mbhc_cb->compute_impedance &&
 			(mbhc->mbhc_cfg->linein_th != 0) &&
 			(!is_pa_on)) {
 #else
-		if (mbhc->impedance_detect &&
-			mbhc->mbhc_cb->compute_impedance &&
-			(mbhc->mbhc_cfg->linein_th != 0)) {
+    if (mbhc->impedance_detect &&
+      mbhc->mbhc_cb->compute_impedance &&
+      (mbhc->mbhc_cfg->linein_th != 0)) {
 #endif
 				mbhc->mbhc_cb->compute_impedance(mbhc,
 						&mbhc->zl, &mbhc->zr);
@@ -759,12 +760,12 @@ static void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 				    (mbhc->hph_status | SND_JACK_MECHANICAL),
 				    WCD_MBHC_JACK_MASK);
 		wcd_mbhc_clr_and_turnon_hph_padac(mbhc);
-#ifdef CONFIG_XIAOMI_D2
-		pr_debug("%s [zoro] lsn ext_pa_gpio= %d   \n", __func__, ext_pa_status);
-		msleep(500);
-		if (ext_pa_status == 1)
-			gpio_set_value(ext_pa_gpio, EXT_PA_PULL_UP);
-#endif
+    #ifdef CONFIG_XIAOMI_D2
+    pr_debug("%s [zoro] lsn ext_pa_gpio= %d   \n", __func__, ext_pa_status);
+    msleep(500);
+    if (ext_pa_status == 1)
+            gpio_set_value(ext_pa_gpio, EXT_PA_PULL_UP);
+    #endif
 	}
 	pr_debug("%s: leave hph_status %x\n", __func__, mbhc->hph_status);
 }
@@ -947,6 +948,12 @@ static int wcd_check_cross_conn(struct wcd_mbhc *mbhc)
 		if (mbhc->mbhc_cb->hph_pa_on_status(mbhc->codec))
 			return false;
 
+
+	if (mbhc->mbhc_cb->hph_pull_down_ctrl) {
+		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_L_DET_EN, 0);
+		mbhc->mbhc_cb->hph_pull_down_ctrl(mbhc->codec, false);
+	}
+
 	WCD_MBHC_REG_READ(WCD_MBHC_ELECT_SCHMT_ISRC, reg1);
 	/*
 	 * Check if there is any cross connection,
@@ -979,6 +986,12 @@ static int wcd_check_cross_conn(struct wcd_mbhc *mbhc)
 	/* Disable schmitt trigger and restore micbias */
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_ELECT_SCHMT_ISRC, reg1);
 	pr_debug("%s: leave, plug type: %d\n", __func__,  plug_type);
+
+	if (mbhc->mbhc_cb->hph_pull_down_ctrl) {
+		mbhc->mbhc_cb->hph_pull_down_ctrl(mbhc->codec, true);
+		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_L_DET_EN, 1);
+	}
+
 
 	return (plug_type == MBHC_PLUG_TYPE_GND_MIC_SWAP) ? true : false;
 }
@@ -1131,8 +1144,8 @@ static void wcd_enable_mbhc_supply(struct wcd_mbhc *mbhc,
 							WCD_MBHC_EN_CS);
 		} else if (plug_type == MBHC_PLUG_TYPE_HEADPHONE) {
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
-		} else if (is_jack_insert) {
-			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
+    } else if (is_jack_insert) {
+      wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
 		} else {
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_NONE);
 		}
@@ -1266,8 +1279,7 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 
 	if ((plug_type == MBHC_PLUG_TYPE_HEADSET ||
 	     plug_type == MBHC_PLUG_TYPE_HEADPHONE) &&
-	    (!wcd_swch_level_remove(mbhc)) &&
-	    (!mbhc->btn_press_intr)) {
+	    (!wcd_swch_level_remove(mbhc))) {
 		WCD_MBHC_RSC_LOCK(mbhc);
 		wcd_mbhc_find_plug_and_report(mbhc, plug_type);
 		WCD_MBHC_RSC_UNLOCK(mbhc);
@@ -1510,9 +1522,6 @@ static void wcd_mbhc_detect_plug_type(struct wcd_mbhc *mbhc)
 
 	pr_debug("%s: enter\n", __func__);
 	WCD_MBHC_RSC_ASSERT_LOCKED(mbhc);
-
-	if (mbhc->mbhc_cb->hph_pull_down_ctrl)
-		mbhc->mbhc_cb->hph_pull_down_ctrl(codec, false);
 
 	if (mbhc->mbhc_cb->micbias_enable_status)
 		micbias1 = mbhc->mbhc_cb->micbias_enable_status(mbhc,
@@ -2043,12 +2052,14 @@ static irqreturn_t wcd_mbhc_release_handler(int irq, void *data)
 	 */
 	if (mbhc->current_plug == MBHC_PLUG_TYPE_HEADPHONE) {
 		wcd_mbhc_find_plug_and_report(mbhc, MBHC_PLUG_TYPE_HEADSET);
+   
+    wcd_mbhc_jack_report(mbhc, &mbhc->headset_jack,
+    0, WCD_MBHC_JACK_MASK);
+    msleep(100);
 
-				wcd_mbhc_jack_report(mbhc, &mbhc->headset_jack,
-				0, WCD_MBHC_JACK_MASK);
+    wcd_mbhc_report_plug(mbhc, 1, SND_JACK_HEADSET);
 
-				msleep(100);
-				wcd_mbhc_report_plug(mbhc, 1, SND_JACK_HEADSET);
+
 		goto exit;
 
 	}
@@ -2423,14 +2434,14 @@ int wcd_mbhc_init(struct wcd_mbhc *mbhc, struct snd_soc_codec *codec,
 	const char *gnd_switch = "qcom,msm-mbhc-gnd-swh";
 
 	pr_debug("%s: enter\n", __func__);
-	accdet_data.name = "h2w";
-	accdet_data.index = 0;
-	accdet_data.state = 0;
-	ret = switch_dev_register(&accdet_data);
-	if (ret) {
-		dev_err(card->dev, "[Accdet]switch_dev_register returned:%d!\n", ret);
-		return -EPERM;
-	}
+  accdet_data.name = "h2w";
+  accdet_data.index = 0;
+  accdet_data.state = 0;
+  ret = switch_dev_register(&accdet_data);
+  if (ret) {
+          dev_err(card->dev, "[Accdet]switch_dev_register returned:%d!\n", ret);
+          return -EPERM;
+  }
 
 	ret = of_property_read_u32(card->dev->of_node, hph_switch, &hph_swh);
 	if (ret) {
@@ -2452,7 +2463,7 @@ int wcd_mbhc_init(struct wcd_mbhc *mbhc, struct snd_soc_codec *codec,
 	mbhc->codec = codec;
 	mbhc->intr_ids = mbhc_cdc_intr_ids;
 #ifdef CONFIG_XIAOMI_D2
-	mbhc->impedance_detect = false;
+  mbhc->impedance_detect = false;
 #else
 	mbhc->impedance_detect = impedance_det_en;
 #endif
@@ -2632,7 +2643,7 @@ err_mbhc_sw_irq:
 		mbhc->mbhc_cb->register_notifier(codec, &mbhc->nblock, false);
 	mutex_destroy(&mbhc->codec_resource_lock);
 err:
-	switch_dev_unregister(&accdet_data);
+  switch_dev_unregister(&accdet_data);
 	pr_debug("%s: leave ret %d\n", __func__, ret);
 	return ret;
 }
@@ -2654,7 +2665,7 @@ void wcd_mbhc_deinit(struct wcd_mbhc *mbhc)
 	if (mbhc->mbhc_cb && mbhc->mbhc_cb->register_notifier)
 		mbhc->mbhc_cb->register_notifier(codec, &mbhc->nblock, false);
 	mutex_destroy(&mbhc->codec_resource_lock);
-	switch_dev_unregister(&accdet_data);
+  switch_dev_unregister(&accdet_data);
 }
 EXPORT_SYMBOL(wcd_mbhc_deinit);
 

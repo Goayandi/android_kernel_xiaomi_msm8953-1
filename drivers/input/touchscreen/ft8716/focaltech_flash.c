@@ -693,6 +693,7 @@ static void fts_ctpm_update_work_func(struct work_struct *work)
 	sprintf(tp_temp_info, "%d", fw_ver);
 		strcat(tp_info_summary, tp_temp_info);
 	strcat(tp_info_summary, "\0");
+	hq_regiser_hw_info(HWID_CTP, tp_info_summary);
 
 #ifdef FTS_LOCK_DOWN_INFO
 
