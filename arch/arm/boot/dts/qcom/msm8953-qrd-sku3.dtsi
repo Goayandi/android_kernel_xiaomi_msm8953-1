@@ -14,7 +14,7 @@
 #include "msm8953-qrd.dtsi"
 
 &spmi_bus {
-	qcom,pmi8940@3 {
+	qcom,pmi8950@3 {
 		labibb: qpnp-labibb-regulator {
 			ibb_regulator: qcom,ibb@dc00 {
 				/delete-property/

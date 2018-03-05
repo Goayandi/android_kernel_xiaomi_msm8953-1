@@ -206,7 +206,7 @@
 			maxim,98927-reset-gpio = <&tlmm 86 0>;
 		};
 		aw2013@45 {
-			compatible = "awinic";
+			compatible = "awinic,aw2013";
 			reg = <0x45>;
 			vdd-supply = <&pm8953_l10>;
 			vcc-supply = <&pm8953_l5>;
@@ -313,14 +313,14 @@
 	pinctrl-0 = <&typec_ssmux_config>;
 };
 
-&pmi8940_charger {
+&pmi8950_charger {
 	qcom,battery-data = <&qrd_batterydata>;
 	qcom,float-voltage-mv = <4400>;
 	qcom,thermal-mitigation = <3000 2500 2000 1000 1000 500 0>;
 	status = "okay";
 };
 
-&pmi8940_fg {
+&pmi8950_fg {
 	qcom,battery-data = <&qrd_batterydata>;
 	qcom,thermal-coefficients = [c8 86 c1 50 d3 37];
 	qcom,cold-bat-decidegc = <0>;
@@ -434,8 +434,8 @@
 
 
 &led_flash0{
-	qcom,flash-source = <&pmi8940_flash0 &pmi8940_flash1>;
-	qcom,torch-source = <&pmi8940_torch0 &pmi8940_torch1>;
+	qcom,flash-source = <&pmi8950_flash0 &pmi8950_flash1>;
+	qcom,torch-source = <&pmi8950_torch0 &pmi8950_torch1>;
 };
 
 &pm8953_vadc {
